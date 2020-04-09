@@ -2,6 +2,7 @@ import os
 import time
 import glob
 import datetime
+import subprocess
 
 import pymongo
 from pymongo import MongoClient
@@ -20,13 +21,18 @@ song2 = collect.find({"streamingYN":False})[1]
 print(song1["title"] + " - " + song1["singer"] + " : " + song1["url"])
 print(song2["title"] + " - " + song2["singer"] + " : " + song2["url"])
 
-def download(url):
+def download(url, title):
     yt = pytube.YouTube(url)
-    yt.streams.filter(only_audio=True).first().download(song_dir)
+    mp4 = yt.streams.filter(only_audio=True).first()
+    mp4.download(song_dir)
+    print(os.path.join('.\mp3', mp4.default_filename))
+    os.system('ffmpeg -i \"' + os.path.join('.\mp3', mp4.default_filename) + '\" \"' + os.path.join('.\mp3', title) + '\"')
+    #print('ffmpeg -i '+song_dir+'/\"'+mp4.default_filename+'\" '+song_dir+'/'+title )
+    
 
 download_start = time.time()
-download(song2["url"])
-download(song1["url"])
+download(song2["url"], "1.mp3")
+download(song1["url"], "2.mp3")
 download_duration = int(time.time() - download_start)
 
 print("Download_duration : " + str(download_duration))
@@ -34,8 +40,10 @@ print("Download_duration : " + str(download_duration))
 song_duration = int(song1["duration"]) + int(song2["duration"])
 print("Song     duration : " + str(song_duration))
 
-_files = glob.glob(song_dir+'/*')
+_files = glob.glob(song_dir+'/*.mp3')
 _files.sort(key=os.path.getmtime, reverse=True)
+
+remove_files = glob.glob(song_dir+'/*')
 
 def streaming() :
     os.system('\"' + _files[0] + '\"')
@@ -46,8 +54,8 @@ def streaming() :
     time.sleep(int(song2["duration"]))
     collect.update_one(song2, { "$set": {"streamingYN":True, "up_date":datetime.datetime.now().strftime('%Y-%m-%d')}} )
 
-    os.remove(_files[0])
-    os.remove(_files[1])
+    for file in remove_files :
+        os.remove(file)
 
 if time.localtime().tm_wday==5 :
     print('today is holyday')
