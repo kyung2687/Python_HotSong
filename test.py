@@ -10,7 +10,7 @@ import pytube
 
 
 ##########
-streamingcnt = 3
+streamingcnt = 1
 ##########
 program_start = time.time()
 conn = MongoClient('127.0.0.1')
@@ -31,30 +31,23 @@ for i, s in enumerate(song):
     print(s["title"] + " - " + s["singer"] + " : " + s["duration"])
     song_duration = song_duration + int(s["duration"]) 
     yt = pytube.YouTube(s["url"])
-    mp4 = yt.streams.filter(only_audio=True).first()
+    mp4 = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
     mp4.download(song_dir)
-    os.system('ffmpeg -i \"' + os.path.join(song_dir, mp4.default_filename) + '\" \"' + os.path.join(song_dir, str(i+1)+'.mp3') + '\"')
 download_duration = int(time.time() - download_start)
 
 print("Download_duration : " + str(download_duration))
 print("Song     duration : " + str(song_duration))
 
-
-_files = glob.glob(song_dir+'/*.mp3')
+_files = glob.glob(song_dir+'/*.mp4')
 _files.sort(key=os.path.getmtime, reverse=False)
 
 remove_files = glob.glob(song_dir+'/*')
 
 def streaming() :
     for i, s in enumerate(_files) :
-        streamdata = db.streamings.find({})[0]
-        db.streamings.update_one(streamdata, { "$set": {"str":True, "song": song[i]}} )
         os.system('\"' + _files[i] + '\"')
         time.sleep(int(song[i]["duration"]))
-        collect.update_one(song[i], { "$set": {"streamingYN":True, "up_date":datetime.datetime.now().strftime('%Y-%m-%d')}} )
-    
-    streamdata = db.streamings.find({})[0]
-    db.streamings.update_one(streamdata, { "$set": {"str":False, "song": {}}})
+   
     for file in remove_files :
         os.remove(file)
 
@@ -63,7 +56,6 @@ if time.localtime().tm_wday==5 :
 elif time.localtime().tm_wday==6 :
     print('today is holyday')
 else :
-    time.sleep(1200 - download_duration - song_duration - 5)
     streaming()
 
 program_duration = int(time.time() - program_start)

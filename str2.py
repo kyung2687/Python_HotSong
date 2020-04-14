@@ -8,6 +8,10 @@ import pymongo
 from pymongo import MongoClient
 import pytube
 
+
+##########
+streamingcnt = 2
+##########
 program_start = time.time()
 conn = MongoClient('127.0.0.1')
 
@@ -15,45 +19,42 @@ db = conn.admin
 collect = db.songs
 song_dir = "C:/Users/admin/Desktop/HotSong/python/mp3"
 
-song1 = collect.find({"streamingYN":False})[0]
-song2 = collect.find({"streamingYN":False})[1]
+songs = collect.find({"streamingYN":False})
+song_duration = 0 #int(song1["duration"]) + int(song2["duration"])
+song = []
 
-print(song1["title"] + " - " + song1["singer"] + " : " + song1["url"])
-print(song2["title"] + " - " + song2["singer"] + " : " + song2["url"])
-
-def download(url, title):
-    yt = pytube.YouTube(url)
-    mp4 = yt.streams.filter(only_audio=True).first()
-    mp4.download(song_dir)
-    print(os.path.join('.\mp3', mp4.default_filename))
-    os.system('ffmpeg -i \"' + os.path.join('.\mp3', mp4.default_filename) + '\" \"' + os.path.join('.\mp3', title) + '\"')
-    #print('ffmpeg -i '+song_dir+'/\"'+mp4.default_filename+'\" '+song_dir+'/'+title )
-    
+for index in range(0, streamingcnt):
+    song.append(songs[index])
 
 download_start = time.time()
-download(song2["url"], "1.mp3")
-download(song1["url"], "2.mp3")
+for i, s in enumerate(song):
+    print(s["title"] + " - " + s["singer"] + " : " + s["duration"])
+    song_duration = song_duration + int(s["duration"]) 
+    yt = pytube.YouTube(s["url"])
+    mp4 = yt.streams.filter(only_audio=True).first()
+    mp4.download(song_dir)
+    os.system('ffmpeg -i \"' + os.path.join(song_dir, mp4.default_filename) + '\" \"' + os.path.join(song_dir, str(i+1)+'.mp3') + '\"')
 download_duration = int(time.time() - download_start)
 
 print("Download_duration : " + str(download_duration))
-
-song_duration = int(song1["duration"]) + int(song2["duration"])
 print("Song     duration : " + str(song_duration))
 
+
 _files = glob.glob(song_dir+'/*.mp3')
-_files.sort(key=os.path.getmtime, reverse=True)
+_files.sort(key=os.path.getmtime, reverse=False)
 
 remove_files = glob.glob(song_dir+'/*')
 
 def streaming() :
-    os.system('\"' + _files[0] + '\"')
-    time.sleep(int(song1["duration"]))
-    collect.update_one(song1, { "$set": {"streamingYN":True, "up_date":datetime.datetime.now().strftime('%Y-%m-%d')}} )
+    for i, s in enumerate(_files) :
+        streamdata = db.streamings.find({})[0]
+        db.streamings.update_one(streamdata, { "$set": {"str":True, "song": song[i]}} )
+        os.system('\"' + _files[i] + '\"')
+        time.sleep(int(song[i]["duration"]))
+        collect.update_one(song[i], { "$set": {"streamingYN":True, "up_date":datetime.datetime.now().strftime('%Y-%m-%d')}} )
     
-    os.system('\"' + _files[1] + '\"')
-    time.sleep(int(song2["duration"]))
-    collect.update_one(song2, { "$set": {"streamingYN":True, "up_date":datetime.datetime.now().strftime('%Y-%m-%d')}} )
-
+    streamdata = db.streamings.find({})[0]
+    db.streamings.update_one(streamdata, { "$set": {"str":False, "song": {}}})
     for file in remove_files :
         os.remove(file)
 

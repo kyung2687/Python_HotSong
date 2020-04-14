@@ -10,7 +10,7 @@ import pytube
 
 
 ##########
-streamingcnt = 3
+streamingcnt = 5
 ##########
 program_start = time.time()
 conn = MongoClient('127.0.0.1')
@@ -63,7 +63,6 @@ if time.localtime().tm_wday==5 :
 elif time.localtime().tm_wday==6 :
     print('today is holyday')
 else :
-    time.sleep(1200 - download_duration - song_duration - 5)
     streaming()
 
 program_duration = int(time.time() - program_start)
